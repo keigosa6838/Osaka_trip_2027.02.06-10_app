@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>關西・丹後・城崎 五日行程</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f6f3;
+  --white:#ffffff;
+  --border:#e8e5e0;
+  --border2:#d4d0c8;
+  --ink:#1a1816;
+  --ink2:#4a4744;
+  --ink3:#9a9590;
+  --gold:#a87820;
+  --d1:#3d6b5e;--d2:#2d5470;--d3:#5e3d5a;--d4:#4a5e3a;--d5:#6e4e2a;
+}
+
+html,body{min-height:100%;background:var(--bg);font-family:'Noto Sans TC',sans-serif;font-size:14px;color:var(--ink)}
+
+/* TOP BAR */
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:16px 20px 0;position:sticky;top:0;z-index:200}
+.topbar-inner{display:flex;align-items:flex-end;gap:10px;margin-bottom:14px}
+.topbar-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--ink);line-height:1}
+.topbar-title em{font-style:italic;color:var(--gold)}
+.topbar-sub{font-size:11px;color:var(--ink3);letter-spacing:.05em;margin-left:2px;padding-bottom:2px}
+
+/* DAY TABS — horizontal scroll */
+.day-tabs{display:flex;overflow-x:auto;gap:0;scrollbar-width:none;margin:0 -20px;padding:0 20px}
+.day-tabs::-webkit-scrollbar{display:none}
+.day-tab{flex-shrink:0;padding:0 18px 12px;cursor:pointer;border-bottom:2px solid transparent;transition:border-color .2s,color .2s;text-align:center;user-select:none;position:relative}
+.day-tab:first-child{padding-left:0}
+.day-tab .tab-label{font-size:10px;letter-spacing:.18em;color:var(--ink3);margin-bottom:3px;transition:color .2s}
+.day-tab .tab-date{font-size:14px;font-weight:500;color:var(--ink2);transition:color .2s}
+.day-tab.active .tab-label{color:var(--active-c)}
+.day-tab.active .tab-date{color:var(--ink)}
+.day-tab.active{border-bottom-color:var(--active-c)}
+.day-tab:hover:not(.active) .tab-date{color:var(--ink)}
+
+/* CONTENT AREA */
+.content{max-width:520px;margin:0 auto;padding:0 0 60px}
+
+/* DAY PANEL */
+.day-panel{display:none;animation:fadeIn .18s ease}
+.day-panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* MAP SECTION */
+.map-section{margin:16px 16px 0;border-radius:12px;overflow:hidden;border:1px solid var(--border);box-shadow:0 1px 6px rgba(0,0,0,.07);position:relative}
+.map-el{width:100%;height:240px;display:block}
+.map-footer{padding:8px 12px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.map-theme{font-size:11px;color:var(--ink3)}
+.map-open-btn{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--gold);text-decoration:none;border:1px solid #d4b060;border-radius:5px;padding:4px 10px;background:#fffbf0;transition:background .15s}
+.map-open-btn:hover{background:#fff8e0}
+
+/* STOPS */
+.stops-section{padding:8px 16px 0}
+
+.stop-item{display:flex;gap:0;padding:10px 0;position:relative}
+.stop-left{width:44px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:3px}
+.stop-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:white;flex-shrink:0;line-height:1}
+.stop-num.stay{box-shadow:0 0 0 2.5px var(--gold)}
+.stop-vline{flex:1;width:1.5px;background:var(--border2);margin-top:4px;margin-bottom:0;min-height:8px}
+.stop-vline.last{display:none}
+
+.stop-right{flex:1;padding-left:10px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.stop-item:last-child .stop-right{border-bottom:none;padding-bottom:0}
+
+.stop-header{display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap}
+.stop-time{font-size:12px;font-weight:500;color:var(--gold);font-variant-numeric:tabular-nums;min-width:38px}
+.stop-badge{font-size:9px;padding:1px 6px;border-radius:10px;letter-spacing:.05em;white-space:nowrap}
+.badge-stay{background:#fef3d0;color:#8a6010;border:1px solid #e8c070}
+.badge-food{background:#fdeee8;color:#8a3020;border:1px solid #e8a090}
+.badge-flight{background:#e8f0f8;color:#1a4070;border:1px solid #90b4d8}
+.badge-pac{background:#e8f3ee;color:#1a5040;border:1px solid #80c0a0}
+
+.stop-name{font-size:14px;font-weight:500;color:var(--ink);margin-bottom:3px;line-height:1.3}
+.stop-desc{font-size:11px;color:var(--ink3);line-height:1.65;margin-bottom:6px}
+
+.drive-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--ink3);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 7px;margin-bottom:6px}
+
+.gmaps-link{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--ink3);border:1px solid var(--border2);border-radius:4px;padding:3px 8px;text-decoration:none;background:var(--white);transition:background .12s}
+.gmaps-link:hover{background:var(--bg);color:var(--ink2)}
+
+/* DAY SUMMARY BAR */
+.day-summary{margin:12px 16px 0;padding:10px 14px;background:var(--white);border:1px solid var(--border);border-radius:8px;display:flex;gap:16px;flex-wrap:wrap}
+.summary-chip{font-size:11px;color:var(--ink3)}
+.summary-chip b{color:var(--ink2);font-weight:500}
+
+/* Leaflet overrides */
+.leaflet-control-zoom{border:none!important}
+.leaflet-control-zoom a{background:rgba(255,255,255,.9)!important;color:var(--ink)!important;border:1px solid var(--border)!important;width:26px!important;height:26px!important;line-height:26px!important;font-size:14px!important}
+.leaflet-control-attribution{font-size:8px!important;background:rgba(255,255,255,.7)!important}
+.leaflet-popup-content-wrapper{border-radius:8px;font-family:'Noto Sans TC',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.12)}
+.leaflet-popup-content{margin:10px 12px;font-size:12px;line-height:1.5}
+.lp-name{font-weight:500;margin-bottom:2px}
+.lp-time{color:var(--gold);font-size:11px;margin-bottom:4px}
+.lp-link{font-size:10px;color:#1a60a0;text-decoration:none;display:block}
+
+@media(max-width:480px){
+  .map-el{height:200px}
+  .topbar-sub{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-title">關西 <em>山海之旅</em></div>
+    <div class="topbar-sub">2027.02.06 — 02.10</div>
+  </div>
+  <div class="day-tabs" id="dayTabs"></div>
+</div>
+
+<div class="content" id="content"></div>
+
+<script>
+const DAYS = [
+  {
+    id:1, label:'Day 1', date:'02/06 六', color:'#3d6b5e',
+    theme:'KIX → 天橋立 → 伊根 → 間人炭平',
+    km:190,
+    gmaps:'https://www.google.com/maps/dir/關西國際機場/天橋立/伊根舟屋/立岩,京丹後市/間人温泉炭平',
+    center:[35.55,135.18], zoom:9,
+    stops:[
+      {n:1,time:'11:55',name:'關西國際機場 KIX T1 落地',lat:34.432,lng:135.237,badge:'flight',badgeText:'BR132',desc:'商務艙通關快，預估13:00完成入境。出關後包車司機在T1入境大廳等候。',drive:null,gmaps:'https://maps.google.com/?q=關西國際機場'},
+      {n:2,time:'13:00',name:'天橋立',lat:35.555,lng:135.182,badge:null,desc:'搭纜車俯瞰3.6km松樹沙洲，「股のぞき」倒身看海。2月人少，纜車末班17:30。¥850。',drive:'約3h 30min｜190km',gmaps:'https://maps.google.com/?q=天橋立,京都府'},
+      {n:3,time:'17:30',name:'伊根舟屋遊覽船',lat:35.676,lng:135.287,badge:'pac',badgeText:'PAC精選',desc:'搭遊覽船一覽230棟舟屋灣畔，成群海鷗飛翔。末班船約18:00，先確認。¥680。',drive:'約30min',gmaps:'https://maps.google.com/?q=伊根舟屋,京都府'},
+      {n:4,time:'18:30',name:'立岩（玄武岩巨柱）',lat:35.744,lng:135.106,badge:null,desc:'20公尺高玄武岩巨柱，2月冬日暮色下的剪影極美，幾乎無外國旅客。',drive:'約20min',gmaps:'https://maps.google.com/?q=立岩,京丹後市'},
+      {n:5,time:'19:10',name:'間人溫泉 炭平',lat:35.729,lng:135.088,badge:'stay',badgeText:'住宿',desc:'1868年創業老舖。間人蟹懷石料理（晚餐19:30），私人露天風呂。京都府京丹後市丹後町間人3718。',drive:'約10min',gmaps:'https://maps.google.com/?q=間人温泉炭平'},
+    ]
+  },
+  {
+    id:2, label:'Day 2', date:'02/07 日', color:'#2d5470',
+    theme:'炭平 → 竹野浜 → 香住漁港 → 玄武洞 → 城崎西村屋',
+    km:110,
+    gmaps:'https://www.google.com/maps/dir/間人炭平/竹野浜/香住漁港/玄武洞/城崎温泉西村屋本館',
+    center:[35.65,134.85], zoom:10,
+    stops:[
+      {n:1,time:'08:30',name:'炭平早餐後出發',lat:35.729,lng:135.088,badge:null,desc:'炭平享用早餐後退房，包車沿山陰海岸線東行。',drive:null,gmaps:'https://maps.google.com/?q=間人温泉炭平'},
+      {n:2,time:'09:30',name:'竹野浜（日本百大海灘）',lat:35.700,lng:134.840,badge:null,desc:'日本百大海灘之一，2月冬日浪高壯觀，岩礁海岸線，幾乎無觀光客。白色細沙與黑色礁岩對比鮮明。',drive:'約55min｜45km',gmaps:'https://maps.google.com/?q=竹野浜,兵庫県'},
+      {n:3,time:'11:00',name:'香住漁港・漁師の店 かどや（午餐）',lat:35.632,lng:134.467,badge:'food',badgeText:'在地午餐',desc:'香住蟹（紅楚蟹）主要漁港。地道食堂，香住蟹海鮮丼約¥1,800，完全不觀光化。TEL: 0796-36-3511。',drive:'約45min｜35km',gmaps:'https://maps.google.com/?q=香住漁港,兵庫県'},
+      {n:4,time:'13:00',name:'玄武洞（世界地質公園）',lat:35.641,lng:134.774,badge:null,desc:'200萬年前火山活動形成的玄武岩柱狀節理洞窟群，「玄武岩」礦物名稱的由來。世界地質公園認定。¥500。',drive:'約35min｜20km',gmaps:'https://maps.google.com/?q=玄武洞,豊岡市'},
+      {n:5,time:'14:30',name:'城崎溫泉街・外湯巡禮',lat:35.622,lng:134.800,badge:null,desc:'柳樹夾道的溫泉街，浴衣漫步，7個外湯任選（西村屋住客免費入浴）。2月雪景最美。',drive:'約10min',gmaps:'https://maps.google.com/?q=城崎温泉,豊岡市'},
+      {n:6,time:'16:30',name:'城崎溫泉 西村屋本館',lat:35.617,lng:134.803,badge:'stay',badgeText:'住宿',desc:'江戶安政年間創業165年，山陰隨一純日本旅館。松葉蟹・但馬牛會席料理，3種大浴場。豊岡市城崎町湯島469。',drive:'步行5min',gmaps:'https://maps.google.com/?q=西村屋本館,城崎温泉'},
+    ]
+  },
+  {
+    id:3, label:'Day 3', date:'02/08 一', color:'#5e3d5a',
+    theme:'城崎 → 出石 → 和久傳之森 → 美山 → 大阪',
+    km:230,
+    gmaps:'https://www.google.com/maps/dir/城崎温泉/出石/和久傳の森/美山かやぶきの里/大阪市北区',
+    center:[35.2,135.15], zoom:8,
+    stops:[
+      {n:1,time:'08:30',name:'城崎大師山纜車',lat:35.623,lng:134.801,badge:null,desc:'搭纜車眺望城崎溫泉街全景與日本海，山頂「かわらけ投げ」祈願。早晨人最少。¥950。',drive:null,gmaps:'https://maps.google.com/?q=城崎温泉ロープウェイ'},
+      {n:2,time:'10:00',name:'出石・皿そば 玄（午餐）',lat:35.479,lng:134.878,badge:'food',badgeText:'在地午餐',desc:'出石城下町，全國皿そば發源地。手打蕎麥，5皿一人前，現磨山葵。地道日本旅人推薦，評價4.6星。',drive:'約50min｜40km',gmaps:'https://maps.google.com/?q=出石皿そば玄,兵庫県'},
+      {n:3,time:'12:30',name:'和久傳之森・安野光雅美術館',lat:35.462,lng:135.378,badge:'pac',badgeText:'PAC精選',desc:'京都名料亭《和久傳》返鄉京丹後，安藤忠雄設計安野光雅美術館，植樹56萬棵成森。¥1,000。',drive:'約1h 10min｜65km',gmaps:'https://maps.google.com/?q=和久傳の森,京丹後市'},
+      {n:4,time:'14:30',name:'美山合掌村（かやぶきの里）',lat:35.377,lng:135.607,badge:'pac',badgeText:'PAC精選',desc:'38棟茅葺傳統建築，京都版合掌村，2月白雪覆頂如童話。比白川鄉少了觀光人潮，更原始靜謐。',drive:'約60min｜55km',gmaps:'https://maps.google.com/?q=美山かやぶきの里'},
+      {n:5,time:'16:30',name:'大阪市區精品酒店',lat:34.693,lng:135.502,badge:'stay',badgeText:'住宿待定',desc:'建議：大阪四季 / 康萊德 / 聖瑞吉斯 / 洲際。晚餐自理，道頓堀・北新地皆可步行。',drive:'約70min｜70km',gmaps:'https://maps.google.com/?q=大阪市北区'},
+    ]
+  },
+  {
+    id:4, label:'Day 4', date:'02/09 二', color:'#4a5e3a',
+    theme:'大阪深度遊覽',
+    km:30,
+    gmaps:'https://www.google.com/maps/dir/中之島公園/大阪城公園/黒門市場/住吉大社/新世界,大阪市',
+    center:[34.66,135.505], zoom:13,
+    stops:[
+      {n:1,time:'09:00',name:'中之島・北浜老洋館區',lat:34.692,lng:135.501,badge:null,desc:'大阪明治時代洋館建築群，北浜レトロ咖啡館（大正6年建築），幾乎無外國旅客的老城區。',drive:null,gmaps:'https://maps.google.com/?q=北浜レトロ,大阪市'},
+      {n:2,time:'11:00',name:'大阪城公園（冬梅）',lat:34.688,lng:135.526,badge:null,desc:'2月梅林盛開，大阪城冬日靜謐，遊客遠少於旺季。西之丸庭園賞梅後漫步城下。',drive:'步行15min',gmaps:'https://maps.google.com/?q=大阪城公園'},
+      {n:3,time:'13:00',name:'黒門市場（午餐）',lat:34.665,lng:135.506,badge:'food',badgeText:'在地午餐',desc:'大阪廚房，海鮮・串炸・牛肉立食攤位。平日午間本地人居多，價格實惠，氣氛熱鬧。',drive:'約20min',gmaps:'https://maps.google.com/?q=黒門市場,大阪市'},
+      {n:4,time:'15:00',name:'住吉大社',lat:34.613,lng:135.493,badge:null,desc:'全日本2,300座住吉神社的總本社，創建1,800年前。反橋造型獨特，幾乎全是日本在地參拜者。',drive:'約20min',gmaps:'https://maps.google.com/?q=住吉大社,大阪市'},
+      {n:5,time:'17:00',name:'新世界・通天閣周邊',lat:34.651,lng:135.506,badge:null,desc:'大阪昭和老庶民街，串炸・どて焼き。傍晚本地老人家居多，復古庶民氣息濃厚，夜晚霓虹最美。',drive:'約15min',gmaps:'https://maps.google.com/?q=新世界,大阪市'},
+      {n:6,time:'19:00',name:'大阪精品酒店 第二晚',lat:34.693,lng:135.502,badge:'stay',badgeText:'住宿',desc:'回酒店休息，晚餐可在道頓堀・心齋橋自由安排。',drive:'約20min',gmaps:'https://maps.google.com/?q=大阪市北区'},
+    ]
+  },
+  {
+    id:5, label:'Day 5', date:'02/10 三', color:'#6e4e2a',
+    theme:'大阪早晨 → KIX → 桃園',
+    km:60,
+    gmaps:'https://www.google.com/maps/dir/大阪市北区/道頓堀/関西国際空港',
+    center:[34.56,135.35], zoom:10,
+    stops:[
+      {n:1,time:'08:00',name:'飯店早餐・退房整理',lat:34.693,lng:135.502,badge:null,desc:'享用飯店早餐後整理行李。建議前一晚整理好，退房更從容。',drive:null,gmaps:'https://maps.google.com/?q=大阪市北区'},
+      {n:2,time:'09:30',name:'道頓堀橋晨間散步',lat:34.669,lng:135.501,badge:null,desc:'早晨人潮最少的道頓堀，拍攝格力高跑者招牌。心齋橋商店街早晨有在地人買菜氣息。',drive:'步行/車10min',gmaps:'https://maps.google.com/?q=道頓堀,大阪市'},
+      {n:3,time:'10:30',name:'包車出發 → KIX T1',lat:34.432,lng:135.237,badge:null,desc:'走阪神高速・關西空港道，11:30抵達KIX。優先報到，12:10前完成出境。',drive:'約50-60min｜55km',gmaps:'https://maps.google.com/?q=関西国際空港'},
+      {n:4,time:'12:55',name:'BR131 起飛 → 桃園 T2',lat:34.432,lng:135.237,badge:'flight',badgeText:'BR131',desc:'KIX T1起飛，桃園T2降落15:05。飛行時間約2小時10分。',drive:null,gmaps:'https://maps.google.com/?q=関西国際空港+T1'},
+    ]
+  }
+];
+
+const maps = {};
+let currentDay = 1;
+
+function init() {
+  buildTabs();
+  buildPanels();
+  selectDay(1);
+}
+
+function buildTabs() {
+  const el = document.getElementById('dayTabs');
+  DAYS.forEach(d => {
+    const t = document.createElement('div');
+    t.className = 'day-tab';
+    t.id = 'tab-' + d.id;
+    t.style.setProperty('--active-c', d.color);
+    t.innerHTML = `<div class="tab-label">${d.label}</div><div class="tab-date">${d.date}</div>`;
+    t.onclick = () => selectDay(d.id);
+    el.appendChild(t);
+  });
+}
+
+function buildPanels() {
+  const ct = document.getElementById('content');
+  DAYS.forEach(day => {
+    const panel = document.createElement('div');
+    panel.className = 'day-panel';
+    panel.id = 'panel-' + day.id;
+
+    // Map section
+    const mapSec = document.createElement('div');
+    mapSec.className = 'map-section';
+    mapSec.innerHTML = `
+      <div class="map-el" id="map-${day.id}"></div>
+      <div class="map-footer">
+        <span class="map-theme">${day.stops.length} 個定點・約 ${day.km} km</span>
+        <a class="map-open-btn" href="${day.gmaps}" target="_blank">📍 Google Maps 完整路線</a>
+      </div>`;
+    panel.appendChild(mapSec);
+
+    // Stops
+    const stopsEl = document.createElement('div');
+    stopsEl.className = 'stops-section';
+    day.stops.forEach((stop, i) => {
+      const isLast = i === day.stops.length - 1;
+      const isStay = stop.badge === 'stay';
+      const numBg = isStay ? day.color : day.color;
+
+      let badgeHtml = stop.badge
+        ? `<span class="stop-badge badge-${stop.badge}">${stop.badgeText}</span>` : '';
+      let driveHtml = stop.drive
+        ? `<div class="drive-chip">🚗 ${stop.drive}</div>` : '';
+
+      const item = document.createElement('div');
+      item.className = 'stop-item';
+      item.innerHTML = `
+        <div class="stop-left">
+          <div class="stop-num${isStay?' stay':''}" style="background:${numBg}">${stop.n}</div>
+          <div class="stop-vline${isLast?' last':''}"></div>
+        </div>
+        <div class="stop-right">
+          <div class="stop-header">
+            <span class="stop-time">${stop.time}</span>
+            ${badgeHtml}
+          </div>
+          <div class="stop-name">${stop.name}</div>
+          ${driveHtml}
+          <div class="stop-desc">${stop.desc}</div>
+          <a class="gmaps-link" href="${stop.gmaps}" target="_blank">📍 查看地圖</a>
+        </div>`;
+      stopsEl.appendChild(item);
+    });
+    panel.appendChild(stopsEl);
+
+    // Summary
+    const sum = document.createElement('div');
+    sum.className = 'day-summary';
+    sum.innerHTML = `<span class="summary-chip">🗓 ${day.date}</span><span class="summary-chip">🚗 <b>${day.km} km</b></span><span class="summary-chip">📍 <b>${day.stops.length}</b> 個定點</span><span class="summary-chip" style="flex:1;text-align:right;font-style:italic">${day.theme}</span>`;
+    panel.appendChild(sum);
+
+    ct.appendChild(panel);
+  });
+}
+
+function selectDay(dayId) {
+  currentDay = dayId;
+  DAYS.forEach(d => {
+    document.getElementById('tab-' + d.id).classList.toggle('active', d.id === dayId);
+    document.getElementById('panel-' + d.id).classList.toggle('active', d.id === dayId);
+  });
+  // Scroll tab into view
+  const activeTab = document.getElementById('tab-' + dayId);
+  activeTab.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+  // Init map
+  setTimeout(() => initMap(dayId), 60);
+}
+
+function initMap(dayId) {
+  if (maps[dayId]) { maps[dayId].invalidateSize(); return; }
+  const day = DAYS.find(d => d.id === dayId);
+  const m = L.map('map-' + dayId, {
+    center: day.center, zoom: day.zoom,
+    zoomControl: true,
+    scrollWheelZoom: false,
+    dragging: true
+  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 18
+  }).addTo(m);
+
+  const latlngs = [];
+  day.stops.forEach((stop, i) => {
+    const ll = [stop.lat, stop.lng];
+    latlngs.push(ll);
+    const isStay = stop.badge === 'stay';
+    const sz = isStay ? 22 : 18;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${day.color};border:${isStay?'2.5px solid #c9a84c':'2px solid white'};box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;font-family:sans-serif">${stop.n}</div>`,
+      iconSize: [sz, sz], iconAnchor: [sz/2, sz/2]
+    });
+    const marker = L.marker(ll, {icon}).addTo(m);
+    marker.bindPopup(`<div class="lp-name">${stop.name}</div><div class="lp-time">${stop.time}${stop.badge ? ' · ' + stop.badgeText : ''}</div><a class="lp-link" href="${stop.gmaps}" target="_blank">📍 在 Google Maps 查看</a>`);
+  });
+
+  if (latlngs.length > 1) {
+    L.polyline(latlngs, {color: day.color, weight: 3, opacity: 0.75}).addTo(m);
+  }
+  const grp = L.featureGroup(day.stops.map(s => L.marker([s.lat, s.lng])));
+  m.fitBounds(grp.getBounds().pad(0.18));
+  maps[dayId] = m;
+}
+
+init();
+</script>
+</body>
+</html>
